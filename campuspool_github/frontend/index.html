@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="pageTitle">IoBM CampusPool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    #map { height: 380px; border-radius: 1rem; z-index: 10; }
+    .glass-card { background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); }
+    .badge-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
+    .tab-active { background: rgba(255,255,255,0.15) !important; font-weight:700; }
+    #loginScreen { min-height: 100vh; }
+    .gender-badge-m { background:#dbeafe;color:#1d4ed8; }
+    .gender-badge-f { background:#fce7f3;color:#be185d; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- ============ LOGIN SCREEN ============ -->
+  <div id="loginScreen" class="flex items-center justify-center bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 p-4">
+    <div class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <img src="/logo.png" alt="Logo" class="w-24 h-24 mx-auto mb-3 object-contain rounded-2xl">
+        <h1 id="loginAppName" class="text-3xl font-black text-white tracking-tight">IoBM CampusPool</h1>
+        <p id="loginTagline" class="text-emerald-300 text-sm mt-1">Institute of Business Management • Korangi Creek, Karachi</p>
+      </div>
+
+      <!-- Login / Signup Tabs -->
+      <div class="bg-white/10 backdrop-blur rounded-2xl p-1 flex mb-6 border border-white/20">
+        <button onclick="showAuthTab('login')" id="authTabLogin"
+          class="flex-1 py-2 rounded-xl text-sm font-bold text-white tab-active transition">
+          Login
+        </button>
+        <button onclick="showAuthTab('signup')" id="authTabSignup"
+          class="flex-1 py-2 rounded-xl text-sm font-semibold text-emerald-200 transition">
+          Sign Up
+        </button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <div id="loginForm" class="bg-white rounded-2xl p-6 shadow-2xl space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">IoBM Student Email</label>
+          <input id="loginEmail" type="email" placeholder="std_24011@iobm.edu.pk"
+            class="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Password</label>
+          <input id="loginPassword" type="password" placeholder="••••••••"
+            class="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div id="loginError" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold"></div>
+        <button onclick="handleLogin()"
+          class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-lg transition text-sm">
+          Login to CampusPool
+        </button>
+        <div class="text-center text-xs text-slate-400">
+          Admin login: <code class="bg-slate-100 px-1 rounded">admin@iobm.edu.pk</code> / <code class="bg-slate-100 px-1 rounded">admin123</code>
+        </div>
+        <div class="text-center text-xs text-slate-400">
+          Demo student: <code class="bg-slate-100 px-1 rounded">std_24011@iobm.edu.pk</code> / <code class="bg-slate-100 px-1 rounded">pass123</code>
+        </div>
+      </div>
+
+      <!-- SIGNUP FORM -->
+      <div id="signupForm" class="hidden bg-white rounded-2xl p-6 shadow-2xl space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Full Name</label>
+            <input id="signupName" type="text" placeholder="Fatima Zahra"
+              class="w-full p-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Student ID</label>
+            <input id="signupStudentId" type="text" placeholder="std_24011"
+              class="w-full p-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">IoBM Email (std_*****@iobm.edu.pk)</label>
+          <input id="signupEmail" type="email" placeholder="std_24011@iobm.edu.pk"
+            class="w-full p-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Password</label>
+          <input id="signupPassword" type="password" placeholder="Minimum 6 characters"
+            class="w-full p-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Role</label>
+            <select id="signupRole" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-white">
+              <option value="rider">Rider</option>
+              <option value="driver">Driver</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Gender on Record</label>
+            <select id="signupGender" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-white">
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Emergency Contact Name</label>
+            <input id="signupEmergName" type="text" placeholder="Father / Mother"
+              class="w-full p-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Emergency Phone</label>
+            <input id="signupEmergPhone" type="tel" placeholder="0300-1234567"
+              class="w-full p-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+        <div id="signupError" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold"></div>
+        <button onclick="handleSignup()"
+          class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-lg transition text-sm">
+          Create IoBM Account
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MAIN APP (hidden until login) ============ -->
+  <div id="mainApp" class="hidden flex flex-col min-h-screen">
+    <header id="appHeader" class="bg-emerald-900 text-white shadow-lg sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+         <div id="headerLogoWrap" class="w-10 h-10 rounded-xl bg-emerald-500/30 flex items-center justify-center border border-emerald-400/40 overflow-hidden">
+  <img src="/logo.png" alt="Logo" class="w-full h-full object-contain">
+</div>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              <span id="headerAppName">IoBM CampusPool</span>
+              <span class="text-xs bg-emerald-700 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-600 font-normal">Karachi</span>
+            </h1>
+            <p id="headerTagline" class="text-xs text-emerald-200">Institute of Business Management • Korangi Creek, Karachi</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center bg-emerald-950/80 rounded-lg p-2 text-xs border border-emerald-700 gap-2">
+            <div id="headerUserPfp" class="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-sm overflow-hidden">
+              👤
+            </div>
+            <div class="text-left">
+              <div id="headerUserName" class="text-white font-bold text-xs leading-tight">Loading...</div>
+              <div id="headerUserRole" class="text-emerald-300 text-[10px]">—</div>
+            </div>
+          </div>
+          <button onclick="triggerSOSModal()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow flex items-center gap-1.5 transition">
+            <span class="w-2.5 h-2.5 rounded-full bg-white badge-pulse inline-block"></span> SOS
+          </button>
+          <button onclick="handleLogout()" class="bg-emerald-800 hover:bg-emerald-700 text-emerald-200 font-semibold px-3 py-1.5 rounded-lg text-xs border border-emerald-700 transition">
+            Logout
+          </button>
+        </div>
+      </div>
+      <nav class="bg-emerald-950 text-emerald-100 border-t border-emerald-800 px-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between text-sm overflow-x-auto">
+          <div class="flex space-x-1 py-1" id="navTabs">
+            <button onclick="switchTab('rider')" id="tab-rider" class="px-4 py-2 font-medium rounded-lg hover:bg-emerald-900 transition">🚗 Find Ride</button>
+            <button onclick="switchTab('driver')" id="tab-driver" class="px-4 py-2 font-medium rounded-lg hover:bg-emerald-900 transition">🚘 Offer Ride</button>
+            <button onclick="switchTab('tracking')" id="tab-tracking" class="px-4 py-2 font-medium rounded-lg hover:bg-emerald-900 transition">📍 Live Trip</button>
+            <button onclick="switchTab('verification')" id="tab-verification" class="px-4 py-2 font-medium rounded-lg hover:bg-emerald-900 transition">🛡️ Verification</button>
+            <button onclick="switchTab('admin')" id="tab-admin" class="px-4 py-2 font-medium rounded-lg hover:bg-emerald-900 transition hidden">⚙️ Admin Panel</button>
+          </div>
+          <div id="currentUserBadge" class="text-xs px-3 py-1 bg-emerald-900 rounded-md border border-emerald-700 text-emerald-200 hidden md:block"></div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+
+      <!-- TAB 1: RIDER HUB -->
+      <section id="view-rider" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="glass-card p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div class="border-b pb-3 flex items-center justify-between">
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2"><span>🔍</span> Find Campus Pool</h2>
+              <span class="text-xs font-medium bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Karachi Routes</span>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Karachi Pickup Location</label>
+                <select id="riderPickupSelect" class="w-full p-2.5 rounded-lg border border-slate-300 bg-white" onchange="updateFarePreview()"></select>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Campus Drop-off</label>
+                <select id="riderDropSelect" class="w-full p-2.5 rounded-lg border border-slate-300 bg-white" onchange="updateFarePreview()"></select>
+              </div>
+              <div id="farePreviewBox" class="hidden p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-semibold"></div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Pool Type</label>
+                <div class="grid grid-cols-3 gap-1.5 text-center font-medium">
+                  <button onclick="setFilter('all')" id="flt-all" class="py-1.5 rounded-lg border bg-emerald-700 text-white border-emerald-700 font-bold">All</button>
+                  <button onclick="setFilter('car_pool')" id="flt-car_pool" class="py-1.5 rounded-lg border bg-white text-slate-700 border-slate-300">Car</button>
+                  <button onclick="setFilter('bike_pool')" id="flt-bike_pool" class="py-1.5 rounded-lg border bg-white text-slate-700 border-slate-300">Bike</button>
+                </div>
+                <button onclick="setFilter('women_only')" id="flt-women_only" class="mt-2 w-full py-1.5 rounded-lg border bg-purple-50 text-purple-700 border-purple-300 font-semibold hover:bg-purple-100 flex items-center justify-center gap-1.5">
+                  🌸 Verified Women-Only Pool
+                </button>
+              </div>
+              <button onclick="searchMatchingRides()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow transition mt-2">
+                Search Ranked Rides
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
+                <span>🎯</span> Ranked Matches
+              </h3>
+              <span id="matchCountLabel" class="text-xs text-slate-500">Ready</span>
+            </div>
+            <div id="matchesContainer" class="space-y-3"></div>
+            <div class="glass-card p-4 rounded-2xl border border-slate-200 mt-6">
+              <h4 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                <span>📋</span> My Bookings & Fare Offers
+              </h4>
+              <div id="riderBookingsContainer" class="space-y-2 text-xs"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: DRIVER HUB -->
+      <section id="view-driver" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="glass-card p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div class="border-b pb-3">
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2"><span>🚘</span> Offer Campus Ride</h2>
+              <p class="text-xs text-slate-500">Share fuel costs with verified IoBM students</p>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Departure Area (Karachi)</label>
+                <select id="driverOriginSelect" class="w-full p-2.5 rounded-lg border border-slate-300 bg-white"></select>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">IoBM Destination Gate</label>
+                <select id="driverDestSelect" class="w-full p-2.5 rounded-lg border border-slate-300 bg-white"></select>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Departure Time</label>
+                  <input type="time" id="driverDepTime" value="08:15" class="w-full p-2 rounded-lg border border-slate-300 bg-white">
+                </div>
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Seats Available</label>
+                  <input type="number" id="driverSeats" value="3" min="1" max="4" class="w-full p-2 rounded-lg border border-slate-300 bg-white">
+                </div>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Ride Category</label>
+                <select id="driverRideType" class="w-full p-2.5 rounded-lg border border-slate-300 bg-white">
+                  <option value="car_pool">Car Pool (Admin Fixed Fare)</option>
+                  <option value="bike_pool">Bike Pool (Negotiable, 1 seat)</option>
+                  <option value="women_only">🌸 Women-Only Pool (Verified Female Driver)</option>
+                </select>
+              </div>
+              <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span class="font-bold text-slate-700 block">Vehicle Features</span>
+                <div class="grid grid-cols-2 gap-2">
+                  <input type="text" id="vehMake" placeholder="Make (e.g. Toyota)" value="Toyota" class="p-1.5 border rounded bg-white">
+                  <input type="text" id="vehModel" placeholder="Model (e.g. Aqua)" value="Aqua" class="p-1.5 border rounded bg-white">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input type="number" id="vehYear" placeholder="Year" value="2021" class="p-1.5 border rounded bg-white">
+                  <input type="text" id="vehPlate" placeholder="Plate (BDN-492)" value="BDN-492" class="p-1.5 border rounded bg-white">
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="font-semibold text-slate-600">Air Conditioning:</span>
+                  <div class="flex gap-2">
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="vehAC" value="AC" checked> <span>❄️ AC</span>
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="vehAC" value="Non-AC"> <span>Non-AC</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <button onclick="postRideOffer()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow transition">
+                Publish Ride Offer
+              </button>
+            </div>
+          </div>
+          <div class="lg:col-span-2 space-y-5">
+            <div class="glass-card p-5 rounded-2xl border border-slate-200">
+              <h3 class="text-md font-bold text-slate-800 mb-3 flex items-center justify-between">
+                <span class="flex items-center gap-2"><span>📥</span> Incoming Booking Requests</span>
+                <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">Review & Confirm</span>
+              </h3>
+              <div id="driverRequestsContainer" class="space-y-3 text-xs"></div>
+            </div>
+            <div class="glass-card p-5 rounded-2xl border border-slate-200">
+              <h3 class="text-md font-bold text-slate-800 mb-3 flex items-center gap-2">
+                <span>🛣️</span> My Scheduled Rides
+              </h3>
+              <div id="driverRidesContainer" class="space-y-2 text-xs"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: LIVE TRIP & CHAT -->
+      <section id="view-tracking" class="hidden space-y-6">
+        <div class="glass-card p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4 border-b pb-3">
+            <div>
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2"><span>📍</span> Live Karachi Trip Tracking</h2>
+              <p class="text-xs text-slate-500">Live GPS tracking along Karachi routes + in-ride chat</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="stepSimPing()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs shadow transition flex items-center gap-1">
+                <span>🚗</span> Sim GPS Ping
+              </button>
+              <button onclick="triggerSOSModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs shadow transition flex items-center gap-1">
+                <span>🚨</span> SOS Alert
+              </button>
+            </div>
+          </div>
+          <div id="tripInfoBanner" class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl mb-4 text-xs text-emerald-900 flex justify-between items-center">
+            <div><span class="font-bold">Active Trip:</span> <span id="bannerDriver">—</span> ➔ <span id="bannerRider">—</span></div>
+            <div class="font-semibold text-emerald-700">Fare: <span id="bannerFare">—</span></div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="lg:col-span-2">
+              <div id="map" class="shadow-inner border border-slate-200"></div>
+            </div>
+            <div class="glass-card p-4 rounded-2xl border border-slate-200 flex flex-col h-[380px]">
+              <div class="border-b pb-2 mb-2 flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-800 flex items-center gap-1.5"><span>💬</span> In-Ride Chat</span>
+                <span class="text-[10px] text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full font-bold">Active</span>
+              </div>
+              <div id="chatMessagesBox" class="flex-1 overflow-y-auto space-y-2 p-2 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                <div class="text-slate-400 text-center py-4 text-[11px]">Ride confirmed! Coordinate pickup here.</div>
+              </div>
+              <div class="mt-2 flex gap-1.5">
+                <input type="text" id="chatInput" placeholder="Message co-traveler..." class="flex-1 p-2 text-xs border rounded-lg outline-none focus:ring-1 focus:ring-emerald-500">
+                <button onclick="sendChatMessage()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition">Send</button>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 text-xs">
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div class="font-semibold text-slate-700">🔒 Coarse Zone Privacy</div>
+              <p class="text-slate-500 mt-1">Pickup shown as 350m zone until ride accepted.</p>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div class="font-semibold text-slate-700">📡 GPS Plausibility</div>
+              <p class="text-slate-500 mt-1">Live pings verified against Karachi transit speed (≤60 km/h).</p>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div class="font-semibold text-slate-700">⭐ Complete Trip</div>
+              <button onclick="completeActiveTrip()" class="mt-1 w-full py-1 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-md transition">
+                Mark Completed & Rate
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: VERIFICATION & WEBCAM -->
+      <section id="view-verification" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="glass-card p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div class="border-b pb-3 flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2"><span>📷</span> Live Camera & Liveness</h2>
+                <p class="text-xs text-slate-500">Browser webcam with anti-spoofing liveness check</p>
+              </div>
+              <span id="cameraStateBadge" class="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-semibold">Camera Off</span>
+            </div>
+            <div class="relative bg-slate-900 rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-slate-700">
+              <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
+              <canvas id="faceCanvas" class="w-full h-full object-cover hidden"></canvas>
+              <div class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                <div class="w-44 h-56 border-2 border-dashed border-emerald-400 rounded-3xl opacity-80 flex items-center justify-center">
+                  <span class="text-xs text-emerald-300 font-semibold bg-emerald-950/70 px-2 py-0.5 rounded">Align Face</span>
+                </div>
+              </div>
+              <div id="livenessPromptBadge" class="absolute bottom-3 px-3 py-1 bg-slate-900/90 text-emerald-400 text-xs font-bold rounded-full border border-emerald-500">
+                Click "Start Camera" to begin
+              </div>
+            </div>
+            <div id="camPermissionNote" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+              ⚠️ Camera permission was denied or not available. Please allow camera access in your browser settings and try again. Verification can still proceed in simulation mode.
+            </div>
+            <div class="flex gap-2">
+              <button onclick="startRealWebcam()" class="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs transition">
+                Start Camera
+              </button>
+              <button onclick="captureWebcamSnapshot()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition">
+                Capture & Check Liveness
+              </button>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+              <div class="flex justify-between">
+                <span class="text-slate-600">Liveness State:</span>
+                <span id="livenessStatusLabel" class="font-bold text-emerald-600">Ready for Capture</span>
+              </div>
+            </div>
+          </div>
+          <div class="glass-card p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div class="border-b pb-3">
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2"><span>🛡️</span> IoBM ID & Gender Check</h2>
+              <p class="text-xs text-slate-500">Mismatches are routed to human review — never auto-rejected</p>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div class="p-3 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 text-center">
+                <span class="text-2xl block mb-1">🪪</span>
+                <span class="font-semibold text-slate-700">Official IoBM Student Card</span>
+                <span id="verifCardDetails" class="block text-slate-400 text-[10px]">Loaded from your account</span>
+              </div>
+              <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-purple-900">Soft Gender Signal:</span>
+                  <span id="genderSignalBadge" class="bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded text-[11px]">Female (89%)</span>
+                </div>
+                <p class="text-[11px] text-purple-700 leading-tight">Multi-frame gender estimate. Uncertainty routes to human admin review.</p>
+                <div class="pt-2 border-t border-purple-200 flex items-center justify-between">
+                  <span class="text-[11px] font-semibold text-purple-800">Simulate Edge Case:</span>
+                  <select id="simGenderSelect" onchange="updateSimulatedGenderSignal()" class="bg-white border border-purple-300 rounded px-2 py-1 text-[11px]">
+                    <option value="female,0.89">Female (89% - Auto Verify)</option>
+                    <option value="male,0.86">Male (86% - Flag Mismatch)</option>
+                    <option value="uncertain,0.61">Uncertain (61% - Low Conf)</option>
+                  </select>
+                </div>
+              </div>
+              <button onclick="submitFullVerification()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow transition">
+                Submit Verification
+              </button>
+              <div id="verifFeedback" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: ADMIN PANEL -->
+      <section id="view-admin" class="hidden space-y-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="glass-card p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <span class="text-xs text-slate-500 font-medium">Total Members</span>
+            <div id="statTotalUsers" class="text-2xl font-extrabold text-slate-800 mt-1">—</div>
+            <span class="text-[11px] text-emerald-600 font-semibold">IoBM Students</span>
+          </div>
+          <div class="glass-card p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <span class="text-xs text-slate-500 font-medium">Flagged Reviews</span>
+            <div id="statFlagged" class="text-2xl font-extrabold text-amber-600 mt-1">—</div>
+            <span class="text-[11px] text-amber-600 font-semibold">Human Review Queue</span>
+          </div>
+          <div class="glass-card p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <span class="text-xs text-slate-500 font-medium">Active Pools</span>
+            <div id="statActiveRides" class="text-2xl font-extrabold text-indigo-600 mt-1">—</div>
+            <span class="text-[11px] text-indigo-600 font-semibold">Karachi Routes</span>
+          </div>
+          <div class="glass-card p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <span class="text-xs text-slate-500 font-medium">Active SOS</span>
+            <div id="statActiveSOS" class="text-2xl font-extrabold text-rose-600 mt-1">—</div>
+            <span class="text-[11px] text-slate-400 font-semibold">Security Console</span>
+          </div>
+        </div>
+
+        <!-- ADMIN: APP BRANDING -->
+        <div class="glass-card p-5 rounded-2xl border-2 border-blue-500 shadow-md space-y-4">
+          <div class="border-b pb-3 flex items-center justify-between">
+            <div>
+              <h3 class="text-md font-bold text-slate-800 flex items-center gap-2"><span>🎨</span> App Branding & Identity</h3>
+              <p class="text-xs text-slate-500">Change the app name, logo emoji, tagline, and your profile picture anytime</p>
+            </div>
+            <span class="text-xs bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full font-bold">Admin Authority</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">App Name</label>
+              <input type="text" id="adminAppName" placeholder="e.g. IoBM CampusPool" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Logo Emoji</label>
+              <input type="text" id="adminAppEmoji" placeholder="e.g. 🎓 or 🚗" maxlength="4" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-2xl">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">App Tagline</label>
+              <input type="text" id="adminAppTagline" placeholder="Institute of Business Management..." class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Admin Profile Picture URL</label>
+              <input type="url" id="adminPfpUrl" placeholder="https://example.com/photo.jpg" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button onclick="saveAppSettings()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shadow transition">
+              Save App Branding
+            </button>
+          </div>
+        </div>
+
+        <!-- ADMIN: LOCATION & FARE MANAGER -->
+        <div class="glass-card p-5 rounded-2xl border-2 border-emerald-600 shadow-md space-y-4">
+          <div class="border-b pb-3 flex items-center justify-between">
+            <div>
+              <h3 class="text-md font-bold text-slate-800 flex items-center gap-2"><span>📍</span> Location & Fare Manager</h3>
+              <p class="text-xs text-slate-500">Admin sets pickup locations and fares directly — no formula. AC and Non-AC priced separately.</p>
+            </div>
+            <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold">Admin Authority</span>
+          </div>
+
+          <!-- Add new location form -->
+          <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3 text-xs">
+            <h4 class="font-bold text-emerald-900 text-sm">➕ Add New Location</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Location Name (Urdu/English)</label>
+                <input type="text" id="newLocName" placeholder="e.g. Gulshan-e-Iqbal Block 13-D" class="w-full p-2 border rounded-lg bg-white">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Zone</label>
+                <select id="newLocZone" class="w-full p-2 border rounded-lg bg-white">
+                  <option value="pickup">Pickup Area</option>
+                  <option value="destination">Destination / Drop-off</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Latitude</label>
+                <input type="number" id="newLocLat" step="0.0001" placeholder="24.8238" class="w-full p-2 border rounded-lg bg-white">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Longitude</label>
+                <input type="number" id="newLocLng" step="0.0001" placeholder="67.0326" class="w-full p-2 border rounded-lg bg-white">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">❄️ AC Fare (PKR Rs.)</label>
+                <input type="number" id="newLocAcFare" placeholder="350" class="w-full p-2 border rounded-lg bg-white font-bold">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">🌀 Non-AC Fare (PKR Rs.)</label>
+                <input type="number" id="newLocNonAcFare" placeholder="250" class="w-full p-2 border rounded-lg bg-white font-bold">
+              </div>
+            </div>
+            <button onclick="addAdminLocation()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-xs shadow transition">
+              Add Location & Save Fares
+            </button>
+          </div>
+
+          <!-- Locations list -->
+          <div id="adminLocationsList" class="space-y-2 text-xs"></div>
+        </div>
+
+        <!-- ADMIN: CARPOOL FORMULA FALLBACK -->
+        <div class="glass-card p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="border-b pb-3 flex items-center justify-between">
+            <div>
+              <h3 class="text-md font-bold text-slate-800 flex items-center gap-2"><span>💰</span> Fallback Formula Pricing</h3>
+              <p class="text-xs text-slate-500">Used only when no admin location fare is set for a route</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Base Fare (PKR Rs.)</label>
+              <input type="number" id="adminBaseFare" value="150" class="w-full p-2.5 border rounded-lg font-bold text-slate-800 outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Rate Per KM (PKR Rs.)</label>
+              <input type="number" id="adminPerKmFare" value="35" class="w-full p-2.5 border rounded-lg font-bold text-slate-800 outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Pricing Model</label>
+              <select id="adminPricingMode" class="w-full p-2.5 border rounded-lg font-semibold text-slate-800 bg-white">
+                <option value="per_km">Per KM (Base + Rate × Dist)</option>
+                <option value="flat">Flat Fixed Fee</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button onclick="saveAdminFareSettings()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-xs shadow transition">
+              Save Fallback Rates
+            </button>
+          </div>
+        </div>
+
+        <!-- ADMIN: VERIFICATION QUEUE -->
+        <div class="glass-card p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="border-b pb-3 flex items-center justify-between">
+            <div>
+              <h3 class="text-md font-bold text-slate-800 flex items-center gap-2"><span>🛡️</span> Verification Queue</h3>
+              <p class="text-xs text-slate-500">Review flagged face-checks and gender signal mismatches</p>
+            </div>
+            <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">Moderation</span>
+          </div>
+          <div id="adminReviewQueue" class="space-y-3 text-xs"></div>
+        </div>
+
+        <!-- ADMIN: SAFETY ALERTS -->
+        <div class="glass-card p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
+            <span>🚨</span> Emergency Alerts & Campus Police
+          </h3>
+          <div id="adminSafetyAlertsList" class="space-y-2 text-xs"></div>
+        </div>
+
+        <!-- ADMIN: ALL USERS LIST -->
+        <div class="glass-card p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
+            <span>👥</span> All Registered Users
+          </h3>
+          <div id="adminUsersList" class="space-y-2 text-xs overflow-y-auto max-h-80"></div>
+        </div>
+
+        <!-- ADMIN: RESET DEMO DATA -->
+        <div class="glass-card p-5 rounded-2xl border border-rose-300 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-md font-bold text-slate-800 flex items-center gap-2"><span>🔄</span> Reset Demo Rides</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Clears all rides, trips, bookings & reseeds 3 fresh demo rides. Users and locations are kept.</p>
+            </div>
+            <button onclick="resetData()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs shadow transition whitespace-nowrap">
+              Reset Demo Data
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- FARE PITCH MODAL -->
+  <div id="farePitchModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 class="font-bold text-slate-800 flex items-center gap-1.5"><span>🏍️</span> Pitch Bike Pool Fare</h3>
+        <button onclick="closePitchModal()" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
+      </div>
+      <div class="text-xs space-y-2.5">
+        <div class="p-3 bg-slate-50 rounded-xl flex justify-between items-center">
+          <span class="text-slate-600">Suggested Cost-Share:</span>
+          <span id="pitchModalSuggested" class="font-extrabold text-slate-800 text-sm">Rs. 180</span>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Your Proposed Fare (PKR Rs.)</label>
+          <input type="number" id="pitchModalInput" step="10" class="w-full p-2.5 rounded-lg border border-slate-300 font-bold text-slate-800 text-center text-lg outline-none">
+        </div>
+        <p class="text-[11px] text-slate-500 leading-tight">Bike pool fares are freely negotiable between passenger and rider.</p>
+        <button onclick="submitPitchedFare()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow transition">
+          Send Pitch Offer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOS MODAL -->
+  <div id="sosModal" class="fixed inset-0 bg-rose-950/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-4 border-rose-500 space-y-4">
+      <div class="text-center space-y-2">
+        <span class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 text-3xl flex items-center justify-center mx-auto">🚨</span>
+        <h3 class="text-xl font-black text-rose-700">CAMPUS EMERGENCY SOS</h3>
+        <p class="text-xs text-slate-600">Dispatches GPS coordinates to Campus Security & Emergency Contact.</p>
+      </div>
+      <div class="p-3 bg-rose-50 rounded-xl border border-rose-200 text-xs space-y-1 text-rose-900">
+        <div><strong>Current GPS:</strong> 24.8270° N, 67.1142° E (IoBM Korangi Creek)</div>
+        <div><strong>Security Hotline:</strong> 021-111-002-004</div>
+        <div><strong>Emergency Contact:</strong> <span id="sosContactLabel">—</span></div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="confirmSOSDispatch()" class="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-sm shadow-lg transition">
+          CONFIRM EMERGENCY
+        </button>
+        <button onclick="closeSOSModal()" class="px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RATING MODAL -->
+  <div id="ratingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 space-y-4">
+      <h3 class="font-bold text-slate-800 text-center">Rate Your Co-Traveler</h3>
+      <div class="flex justify-center space-x-2 text-2xl text-amber-400">
+        <button onclick="setScore(1)">★</button>
+        <button onclick="setScore(2)">★</button>
+        <button onclick="setScore(3)">★</button>
+        <button onclick="setScore(4)">★</button>
+        <button onclick="setScore(5)">★</button>
+      </div>
+      <input type="text" id="ratingCommentInput" placeholder="Safe driver, polite, on time..." class="w-full p-2 border rounded-lg text-xs outline-none">
+      <button onclick="submitRating()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition">
+        Submit Rating
+      </button>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
